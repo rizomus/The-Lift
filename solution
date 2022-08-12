@@ -1,0 +1,163 @@
+class Dinglemouse(object):
+
+
+    def __init__(self, q, capacity):
+        self.capacity = capacity
+        self.q = []
+        for i in range(len(q)):
+            self.q.append(list(q[i]))
+        
+
+    def theLift(self):
+
+        q = list(self.q)                    # queues
+        people_in_lift = []
+        n_people = 0                        # need to transfer
+        for i in range(len(q)):
+            n_people += len(q[i])
+        current_floor = 0
+        target_floor = None
+        capacity = self.capacity
+        direction = 'up'
+        ret = [0]                           # return visited floors
+
+
+        def button():                       # call-batton on each floor may be 'up', 'down', 'both' and None
+            but = None
+            for floor in q[current_floor]:
+                if floor > current_floor:
+                    if but == None:
+                        but = 'up'
+                    elif but == 'down':
+                        but = 'both'
+                        break
+    
+                else:                       # floor < current_floor:
+                    if but == None:
+                        but = 'down'
+                    elif but == 'up':
+                        but = 'both'
+                        break
+            return but               
+        
+
+        def get_desired_floor():                            # highest or lowest floor wanted by people in lift
+
+            func = max if direction == 'up' else min
+            return func(people_in_lift) if people_in_lift else None
+
+
+        def get_target_floor():         # highest or lowest floor with active call-button or desired_floor
+
+            target_floor = 0            # if no one call and no one in lift
+            desired_floor = get_desired_floor()
+
+            range_ = range(len(q)-1,-1,-1) if direction == 'up' else range(len(q))  # check floors from up to down or vice-versa according to direction
+            for i in range_:  
+                if q[i]:
+                    target_floor = i
+                    break
+
+            if desired_floor != None:           # if desired_floor futher than target_floor across direction
+                if (direction == 'up' and desired_floor > target_floor) or (direction == 'down' and desired_floor < target_floor):
+                    target_floor = desired_floor
+
+            return target_floor
+
+
+        def move_to_next_floor():
+
+            nonlocal current_floor
+            if direction == 'up':
+                current_floor += 1
+            else:
+                current_floor -= 1
+            return current_floor
+
+
+        def on_the_way():
+
+            may_in = []
+
+            if current_floor == target_floor and q[current_floor]:      # no one waiting lift in further direction, and all in lift want to change direction (otherways target_floor shouldn't be == current_floor)
+
+                may_in.append(q[current_floor][0])                                  # first in queue enter lift and define further direction
+                future_direction = 'up' if may_in[0] > current_floor else 'down'        # reason to keep direction is desired floor of first, who enter lift
+
+                for x in q[current_floor][1:]:
+                    if (future_direction == 'up' and x > current_floor) or (future_direction == 'down' and x < current_floor):
+                        may_in.append(x)  
+
+            else:                               # passing-through floor, no changing direction anyway
+                for x in q[current_floor]:
+                    if( direction == 'up' and current_floor < x) or ( direction == 'down' and current_floor > x):
+                        may_in.append(x)
+            return may_in
+               
+
+        def get_out(x):
+
+            nonlocal n_people
+            n = len(people_in_lift)
+            i=0
+            while i < n:
+                if people_in_lift[i] == x:
+                    del people_in_lift[i]
+                    n_people -= 1
+                    n -= 1
+                else:
+                    i += 1
+
+        def get_in():
+
+            nonlocal target_floor
+            queue = q[current_floor]
+            may_in = on_the_way()
+            i = 0
+
+            while queue and len(people_in_lift) < capacity and may_in and i<len(queue):
+                if queue[i] in may_in:
+                    people_in_lift.append(queue.pop(i))
+
+                    if direction == 'up':           # refresh target_floor
+                        target_floor = people_in_lift[-1] if people_in_lift[-1] > target_floor else target_floor
+                    else:       # down
+                        target_floor = people_in_lift[-1] if people_in_lift[-1] < target_floor else target_floor
+                else:
+                    i += 1
+
+        print(q)
+
+        target_floor = get_target_floor()
+        if q[current_floor]: 
+            get_in()
+
+        while n_people != 0:
+            target_floor = get_target_floor()
+
+            while current_floor != target_floor:        
+                current_floor = move_to_next_floor()
+
+                if current_floor in people_in_lift:                       # somebody to out
+                    ret.append(current_floor)
+                    get_out(current_floor)
+
+                if button() == direction or button() == 'both' or (current_floor == target_floor and q[current_floor]):         # somebody to in
+                    if not(ret) or ret[-1] != current_floor:
+                        ret.append(current_floor)
+                    get_in()
+            
+            # now current_floor == target_floor, check direction
+
+            if people_in_lift:
+                if direction == 'up' and get_desired_floor() < current_floor:       # if no one wants to go further - change direction
+                    direction = 'down'
+                elif direction == 'down' and get_desired_floor() > current_floor:
+                    direction = 'up'
+            else:                                                            # empty lift change direction anyway
+                direction = 'down' if direction == 'up' else 'up'
+
+
+        if ret[-1] != 0:
+            ret.append(0)                     
+        return ret
